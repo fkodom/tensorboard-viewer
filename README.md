@@ -1,12 +1,12 @@
-# {{REPO_NAME}}
+# tensorboard-viewer
 
 ## Install
 
 ```bash
-pip install "{{REPO_NAME}} @ git+ssh://git@github.com/{{GIT_USER_NAME}}/{{REPO_NAME}}.git"
+pip install "tensorboard-viewer @ git+ssh://git@github.com/Frank Odom/tensorboard-viewer.git"
 
 # Install all dev dependencies (tests etc.)
-pip install "{{REPO_NAME}}[all] @ git+ssh://git@github.com/{{GIT_USER_NAME}}/{{REPO_NAME}}.git"
+pip install "tensorboard-viewer[all] @ git+ssh://git@github.com/Frank Odom/tensorboard-viewer.git"
 
 # Setup pre-commit hooks
 pre-commit install
