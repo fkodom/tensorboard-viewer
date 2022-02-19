@@ -33,7 +33,7 @@ setup(
     author_email="frank.odom.iii@gmail.com",
     url="https://github.com/fkodom/tensorboard-viewer",
     packages=setuptools.find_packages(exclude=["tests"]),
-    description="project_description",
+    description="Minimal project for aggregating and viewing remote and local Tensorboard logs.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
     install_requires=["fsspec", "tqdm", "tensorboard"],

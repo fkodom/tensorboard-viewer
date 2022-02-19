@@ -47,7 +47,10 @@ def _cached_download(src: str, dest: str, fs: fsspec.AbstractFileSystem) -> str:
 
 
 def sync_tfevents_files(
-    src: str, dest: str, max_workers: Optional[int] = None, show_progress: bool = False,
+    src: str,
+    dest: str,
+    max_workers: Optional[int] = None,
+    show_progress: bool = False,
 ) -> List[str]:
     fs = filesystem_from_uri(src)
     dir_path = src.split("://")[1]
