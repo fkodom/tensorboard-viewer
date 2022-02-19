@@ -33,33 +33,38 @@ def get_protocol_from_filesystem(fs: fsspec.AbstractFileSystem) -> str:
 
 
 @lru_cache(maxsize=2048)
-def _download_if_changed_size(src: str, dest: str, size: int, protocol: str) -> str:
+def _download_if_changed_size(uri: str, dest: str, size: int, protocol: str) -> str:
     assert isinstance(size, int)
     fs: fsspec.AbstractFileSystem = fsspec.filesystem(protocol)
-    fs.download(src, dest)
+    fs.download(uri, dest)
     return dest
 
 
-def _cached_download(src: str, dest: str, fs: fsspec.AbstractFileSystem) -> str:
-    size = fs.size(src)
+def _cached_download(uri: str, dest: str, fs: fsspec.AbstractFileSystem) -> str:
+    size = fs.size(uri)
     protocol = get_protocol_from_filesystem(fs)
-    return _download_if_changed_size(src, dest, size, protocol)
+    return _download_if_changed_size(uri, dest, size, protocol)
+
+
+def sync_file(uri: str, dest: str) -> str:
+    fs = filesystem_from_uri(uri)
+    return _cached_download(uri, dest, fs)
 
 
 def sync_tfevents_files(
-    src: str,
+    uri: str,
     dest: str,
     max_workers: Optional[int] = None,
     show_progress: bool = False,
 ) -> List[str]:
-    fs = filesystem_from_uri(src)
-    dir_path = src.split("://")[1]
-    paths: List[str] = fs.glob(os.path.join(src, "**/*tfevents*"))
+    fs = filesystem_from_uri(uri)
+    dir_path = uri.split("://")[1]
+    paths: List[str] = fs.glob(os.path.join(uri, "**/*tfevents*"))
 
     relative_paths = [f.removeprefix(dir_path).strip("/") for f in paths]
     dest_paths = [os.path.join(dest, f) for f in relative_paths]
 
-    logging.info(f"Downloading 'tfevents' files from '{src}' to '{dest}'")
+    logging.info(f"Downloading 'tfevents' files from '{uri}' to '{dest}'")
     pool = ThreadPoolExecutor(max_workers=max_workers)
     download_fn = partial(_cached_download, fs=fs)
     futures = pool.map(download_fn, paths, dest_paths)
@@ -68,31 +73,31 @@ def sync_tfevents_files(
     return dest_paths
 
 
-def cache_dir_context_manager(path: Optional[str] = None) -> ContextManager:
-    if path is None:
+def local_cache_context_manager(local_path: Optional[str] = None) -> ContextManager:
+    if local_path is None:
         return tempfile.TemporaryDirectory()
 
     @contextmanager
     def _local_context_manager():
-        yield os.path.abspath(path)
+        yield os.path.abspath(local_path)
 
-    if os.path.exists(path):
-        resp = input(f"Folder {path} already exists. Overwrite? (y/N): ")
+    if os.path.exists(local_path):
+        resp = input(f"Folder {local_path} already exists. Overwrite? (y/N): ")
         if resp.lower() == "y":
-            shutil.rmtree(path)
-    os.makedirs(path, exist_ok=True)
+            shutil.rmtree(local_path)
+    os.makedirs(local_path, exist_ok=True)
     return _local_context_manager()
 
 
-# if __name__ == "__main__":
-#     logging.basicConfig(level=logging.INFO)
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
 
-#     with tempfile.TemporaryDirectory() as tempdir:
-#         paths = sync_tfevents_files(
-#             "gs://frank-odom/experiments", tempdir, show_progress=True
-#         )
-#         paths = sync_tfevents_files(
-#             "gs://frank-odom/experiments", tempdir, show_progress=True
-#         )
-#         breakpoint()
-#         pass
+    with tempfile.TemporaryDirectory() as tempdir:
+        paths = sync_tfevents_files(
+            "gs://frank-odom/experiments", tempdir, show_progress=True
+        )
+        paths = sync_tfevents_files(
+            "gs://frank-odom/experiments", tempdir, show_progress=True
+        )
+        breakpoint()
+        pass

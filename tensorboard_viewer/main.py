@@ -6,7 +6,7 @@ from functools import partial
 from threading import Thread
 from typing import Iterable, Optional, Union
 
-from tensorboard_viewer.data import cache_dir_context_manager, sync_tfevents_files
+from tensorboard_viewer.data import local_cache_context_manager, sync_tfevents_files
 
 EPS = 1e-6
 
@@ -49,7 +49,7 @@ def main():
     parser.add_argument("--sync-interval", type=float, default=30.0)
     args, tensorboard_args = parser.parse_known_args()
 
-    with cache_dir_context_manager(path=args.cache_dir) as logdir:
+    with local_cache_context_manager(local_path=args.cache_dir) as logdir:
         print("Syncing data...")
         sync_experiments(args.uris, logdir)
 
