@@ -17,7 +17,7 @@ repos:
 
   - id: flake8
     name: flake8
-    stages: [push]
+    stages: [commit]
     language: system
     entry: flake8
     types: [python]
