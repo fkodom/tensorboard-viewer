@@ -1,0 +1,95 @@
+import logging
+import os
+import shutil
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
+from functools import lru_cache, partial
+from typing import ContextManager, List, Optional, Tuple, Union
+
+import fsspec
+from tqdm import tqdm
+
+
+@lru_cache(maxsize=8)
+def cached_filesystem(protocol: str) -> fsspec.AbstractFileSystem:
+    return fsspec.filesystem(protocol)
+
+
+def filesystem_from_uri(uri: str) -> fsspec.AbstractFileSystem:
+    if "://" in uri:
+        protocol = uri.split("://")[0]
+    else:
+        protocol = "file"
+    return cached_filesystem(protocol)
+
+
+def get_protocol_from_filesystem(fs: fsspec.AbstractFileSystem) -> str:
+    protocol: Union[str, Tuple[str]] = fs.protocol
+    if isinstance(protocol, tuple):
+        protocol = protocol[0]
+    assert isinstance(protocol, str)
+    return protocol
+
+
+@lru_cache(maxsize=2048)
+def _download_if_changed_size(src: str, dest: str, size: int, protocol: str) -> str:
+    assert isinstance(size, int)
+    fs: fsspec.AbstractFileSystem = fsspec.filesystem(protocol)
+    fs.download(src, dest)
+    return dest
+
+
+def _cached_download(src: str, dest: str, fs: fsspec.AbstractFileSystem) -> str:
+    size = fs.size(src)
+    protocol = get_protocol_from_filesystem(fs)
+    return _download_if_changed_size(src, dest, size, protocol)
+
+
+def sync_tfevents_files(
+    src: str, dest: str, max_workers: Optional[int] = None, show_progress: bool = False,
+) -> List[str]:
+    fs = filesystem_from_uri(src)
+    dir_path = src.split("://")[1]
+    paths: List[str] = fs.glob(os.path.join(src, "**/*tfevents*"))
+
+    relative_paths = [f.removeprefix(dir_path).strip("/") for f in paths]
+    dest_paths = [os.path.join(dest, f) for f in relative_paths]
+
+    logging.info(f"Downloading 'tfevents' files from '{src}' to '{dest}'")
+    pool = ThreadPoolExecutor(max_workers=max_workers)
+    download_fn = partial(_cached_download, fs=fs)
+    futures = pool.map(download_fn, paths, dest_paths)
+    _ = [f for f in tqdm(futures, total=len(paths), disable=not show_progress)]
+
+    return dest_paths
+
+
+def cache_dir_context_manager(path: Optional[str] = None) -> ContextManager:
+    if path is None:
+        return tempfile.TemporaryDirectory()
+
+    @contextmanager
+    def _local_context_manager():
+        yield os.path.abspath(path)
+
+    if os.path.exists(path):
+        resp = input(f"Folder {path} already exists. Overwrite? (y/N): ")
+        if resp.lower() == "y":
+            shutil.rmtree(path)
+    os.makedirs(path, exist_ok=True)
+    return _local_context_manager()
+
+
+# if __name__ == "__main__":
+#     logging.basicConfig(level=logging.INFO)
+
+#     with tempfile.TemporaryDirectory() as tempdir:
+#         paths = sync_tfevents_files(
+#             "gs://frank-odom/experiments", tempdir, show_progress=True
+#         )
+#         paths = sync_tfevents_files(
+#             "gs://frank-odom/experiments", tempdir, show_progress=True
+#         )
+#         breakpoint()
+#         pass

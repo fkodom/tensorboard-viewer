@@ -7,7 +7,7 @@ import setuptools
 
 def get_version_tag() -> str:
     try:
-        env_key = "tensorboard-viewer_VERSION".upper()
+        env_key = "TENSORBOARD_VIEWER_VERSION".upper()
         version = os.environ[env_key]
     except KeyError:
         version = getoutput("git describe --tags --abbrev=0")
@@ -18,7 +18,9 @@ def get_version_tag() -> str:
     return version
 
 
-extras_require = {"test": ["black", "flake8", "isort", "mypy", "pytest", "pytest-cov"]}
+extras_require = {
+    "test": ["black", "flake8", "isort", "mypy", "pytest", "pytest-cov"],
+}
 extras_require["dev"] = ["pre-commit", *extras_require["test"]]
 all_require = [r for reqs in extras_require.values() for r in reqs]
 extras_require["all"] = all_require
@@ -34,8 +36,11 @@ setup(
     description="project_description",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    install_requires=[],
+    install_requires=["fsspec", "tqdm", "tensorboard"],
     extras_require=extras_require,
+    entry_points={
+        "console_scripts": ["tensorboard-viewer=tensorboard_viewer.main:main"]
+    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
